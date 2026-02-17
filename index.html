@@ -24,9 +24,10 @@
         ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 
         /* Formatting Helpers */
-        .message-content b, .message-content strong { font-weight: 700; color: #1e293b; }
-        .message-content ul { margin-left: 1.25rem; list-style-type: disc; margin-top: 0.5rem; margin-bottom: 0.5rem; }
-        .message-content li { margin-bottom: 0.25rem; }
+        .message-content b, .message-content strong { font-weight: 700; color: #0f172a; }
+        .message-content ul { margin-left: 1.25rem; list-style-type: disc; margin-top: 0.75rem; margin-bottom: 0.75rem; }
+        .message-content li { margin-bottom: 0.4rem; padding-left: 0.25rem; }
+        .message-content p { margin-bottom: 0.5rem; }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -78,23 +79,25 @@
         const SYSTEM_PROMPT = `
         You are the GuideMe Strategic Advisor. 
         Formatting Instructions:
-        - Use **bold text** for important names, schools, or stats.
-        - Use bullet points (- ) for lists.
-        - Keep answers structured with clear spacing.
+        - Use **bold text** for key names, institutions, and core statistics.
+        - Use bullet points (- ) for all lists.
+        - Structure responses with clear paragraph breaks for readability.
         
         Institutional Data:
         - Identity: "Passport to the Best Universities in the World". Established 2014.
-        - Location: Tiffany Tower, JLT, Dubai.
-        - Key Mentors:
-            * Namrata (Admissions Lead): Ivy League & M7 strategy.
-            * Abheet (Test-Prep Lead): GMAT 770+, GRE 330+.
-            * José López Gallego: Partner & IE Business School Professor.
-            * Haran Rasalingam: Psychotherapy & high-stakes testing support.
+        - Location: Tiffany Tower, Jumeirah Lakes Towers (JLT), Dubai.
+        - Philosophy: Mentorship-led; specializing in "Candid Advice" and "Honest Consulting".
+        - Leadership Team:
+            * Namrata (Lead Admissions): Specialist in Ivy League, M7, and story-building.
+            * Abheet (Lead Test-Prep): GMAT 770+, GRE 330+. Focus on Quant/Verbal mastery.
+            * José López Gallego: Partner & Professor at IE Business School.
+            * Haran Rasalingam: Psychotherapy background for high-stakes test support.
             * Munish Sharda: MD & CEO of Future Generali India (Executive Mentor).
+            * Manish Shah: Co-Founder; focuses on data-driven academic results.
+        - Core Pedagogy: "Muscle memory", "Demystification of basics", and "Quality over quantity".
         - Test Prep: GMAT Focus, GRE, SAT Digital, UCAT, IMAT, EA.
-        - Pedagogy: Focus on "muscle memory" and "demystification of basics".
-        - Success: 100% Top UK selection (Oxford, LSE), 98% Global Top 30.
-        - Placements: Harvard, Stanford, INSEAD, LBS, HEC, Wharton.
+        - Success Stats: 100% selection rate for Oxford/LSE (Top UK); 98% Success for Top 30 Global Universities.
+        - Key Placements: Harvard, Stanford, INSEAD, LBS, HEC Paris, Wharton, Cambridge.
         `;
 
         // --- Formatting Utility ---
@@ -111,19 +114,23 @@
                     return index % 2 === 1 ? <strong key={index}>{part}</strong> : part;
                 });
 
-                if (trimmed.startsWith('- ')) {
+                if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
                     currentList.push(<li key={i}>{processedLine.slice(1)}</li>);
                 } else {
                     if (currentList.length > 0) {
-                        elements.push(<ul key={`list-${i}`}>{currentList}</ul>);
+                        elements.push(<ul key={`list-${i}`} className="my-2">{currentList}</ul>);
                         currentList = [];
                     }
-                    elements.push(<p key={i} className={trimmed === '' ? 'h-2' : 'mb-1'}>{processedLine}</p>);
+                    if (trimmed === '') {
+                        elements.push(<div key={i} className="h-2"></div>);
+                    } else {
+                        elements.push(<p key={i} className="mb-2 leading-relaxed">{processedLine}</p>);
+                    }
                 }
             });
 
             if (currentList.length > 0) {
-                elements.push(<ul key="list-final">{currentList}</ul>);
+                elements.push(<ul key="list-final" className="my-2">{currentList}</ul>);
             }
 
             return elements;
@@ -132,7 +139,7 @@
         const SidebarBtn = ({ icon: Icon, text, onClick }) => (
             <button 
                 onClick={onClick}
-                className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl transition-all font-bold text-sm text-left group"
+                className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl transition-all font-semibold text-sm text-left group"
             >
                 <span className="opacity-70 group-hover:scale-110 transition-transform">
                     <Icon size={18} />
@@ -149,7 +156,7 @@
             const [password, setPassword] = useState("");
             const [loginError, setLoginError] = useState("");
             const [messages, setMessages] = useState([
-                { role: 'assistant', content: "Link established. I am your strategic bridge to **Ivy League**, **M7**, and **G5** institutions. \n\nHow can I assist with your profile narrative today?" }
+                { role: 'assistant', content: "Strategic link established. I am your advisor for **Ivy League**, **M7**, and **G5** institutions. \n\nHow can I support your academic journey today?" }
             ]);
             const [input, setInput] = useState("");
             const [isLoading, setIsLoading] = useState(false);
@@ -166,12 +173,23 @@
                 let delay = 1000;
                 const maxRetries = 5;
 
+                // API MANDATORY RULE: Must start with 'user' and alternate 'user'/'model'.
+                // Filter history to ensure it starts with a user message.
+                const conversationHistory = currentMessages
+                    .filter((m, index) => !(index === 0 && m.role === 'assistant'))
+                    .map(m => ({
+                        role: m.role === 'assistant' ? 'model' : 'user',
+                        parts: [{ text: m.content }]
+                    }));
+
+                // If history is not empty and first role is 'model', remove it to fix the sequence
+                if (conversationHistory.length > 0 && conversationHistory[0].role === 'model') {
+                    conversationHistory.shift();
+                }
+
                 const payload = {
                     contents: [
-                        ...currentMessages.map(m => ({
-                            role: m.role === 'assistant' ? 'model' : 'user',
-                            parts: [{ text: m.content }]
-                        })),
+                        ...conversationHistory,
                         { role: 'user', parts: [{ text: userText }] }
                     ],
                     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
@@ -184,9 +202,14 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
-                        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+                        }
+                        
                         const data = await response.json();
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "Link timed out.";
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "Communication link timeout.";
                     } catch (err) {
                         if (i === maxRetries - 1) throw err;
                         await new Promise(res => setTimeout(res, delay));
@@ -200,7 +223,7 @@
                 if (password.toUpperCase() === PASSWORD_SECRET) {
                     setIsAuthenticated(true);
                 } else {
-                    setLoginError("Invalid Access Code.");
+                    setLoginError("Access denied. Incorrect code.");
                 }
             };
 
@@ -217,7 +240,7 @@
                     const aiResponse = await callGemini(messages, userText);
                     setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
                 } catch (err) {
-                    setMessages(prev => [...prev, { role: 'assistant', content: "Connection interrupted. Check institutional API link." }]);
+                    setMessages(prev => [...prev, { role: 'assistant', content: "Connection interrupted. Please verify your institutional API configuration." }]);
                 } finally {
                     setIsLoading(false);
                 }
@@ -225,10 +248,10 @@
 
             const handleQuickAction = (category) => {
                 const prompts = {
-                    mentors: "Tell me about your Mentor team, specifically Namrata, Abheet, and José.",
-                    courses: "What test prep courses do you offer? Mention GMAT Focus and Digital SAT.",
-                    placements: "What are your placement statistics for top UK and US universities?",
-                    faq: "Where is your office located and how do diagnostic tests work?"
+                    mentors: "Tell me about your Mentor team, specifically Namrata, Abheet, José López Gallego, Haran Rasalingam, and Munish Sharda.",
+                    courses: "What test prep courses do you offer? Specifically explain GMAT Focus, GRE, and Digital SAT.",
+                    placements: "What are your placement statistics for top UK universities and the Global Top 30?",
+                    faq: "Where is your office located and what is your pedagogical philosophy?"
                 };
                 handleSendMessage(null, prompts[category]);
                 setIsSidebarOpen(false);
@@ -244,7 +267,7 @@
                                     <IconShieldCheck size={32} />
                                 </div>
                                 <h1 className="text-2xl font-black text-slate-800 tracking-tight text-center leading-tight">GUIDEME SECURE</h1>
-                                <p className="text-slate-400 text-sm mt-2 font-medium tracking-widest uppercase">Student Portal</p>
+                                <p className="text-slate-400 text-[11px] mt-2 font-bold tracking-widest uppercase">Institutional Portal</p>
                             </div>
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <input 
@@ -281,11 +304,11 @@
                         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                             <SidebarBtn icon={IconUsers} text="Mentors" onClick={() => handleQuickAction('mentors')} />
                             <SidebarBtn icon={IconBookOpen} text="Courses" onClick={() => handleQuickAction('courses')} />
-                            <SidebarBtn icon={IconTrophy} text="Placements" onClick={() => handleQuickAction('placements')} />
+                            <SidebarBtn icon={IconTrophy} text="Placement Stats" onClick={() => handleQuickAction('placements')} />
                             <SidebarBtn icon={IconHelpCircle} text="FAQ" onClick={() => handleQuickAction('faq')} />
                             
                             <div className="pt-6 border-t border-slate-50 mt-6">
-                                <button onClick={() => setMessages([{ role: 'assistant', content: "Narrative history reset. Ready for new queries." }])} className="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-red-500 rounded-xl transition-all font-bold text-sm text-left group">
+                                <button onClick={() => setMessages([{ role: 'assistant', content: "History reset. Ready for new queries." }])} className="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-red-500 rounded-xl transition-all font-bold text-sm text-left group">
                                     <IconTrash2 size={18} /> <span>Reset Chat</span>
                                 </button>
                             </div>
@@ -302,11 +325,13 @@
                     <main className="flex-1 flex flex-col relative overflow-hidden">
                         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center px-6 justify-between z-30">
                             <div className="flex items-center gap-3">
-                                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-slate-500"><IconMenu size={20} /></button>
+                                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-slate-500 hover:bg-slate-50 rounded-lg">
+                                    <IconMenu size={20} />
+                                </button>
                                 <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">AI</div>
                                 <div>
-                                    <span className="text-sm font-black block leading-none">GuideMe Advisor</span>
-                                    <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Tiffany Tower Hub</span>
+                                    <span className="text-sm font-bold block leading-none">GuideMe Advisor</span>
+                                    <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Tiffany Tower, JLT</span>
                                 </div>
                             </div>
                         </header>
@@ -336,7 +361,7 @@
                             <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex gap-2">
                                 <input 
                                     className="flex-1 p-3 bg-slate-50 text-sm border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#E55C5E]/5 transition-all font-medium"
-                                    placeholder="Discuss your strategy..."
+                                    placeholder="Discuss your strategic passport..."
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     disabled={isLoading}
