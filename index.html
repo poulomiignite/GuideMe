@@ -41,18 +41,17 @@
         const IconUsers = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
         const IconBook = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>;
         const IconStats = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>;
-        const IconFAQ = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>;
         const IconShield = () => <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>;
         const IconMenu = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
         const IconClose = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
         const SYSTEM_PROMPT = `
-        You are the GuideMe Strategic Advisor. Focus on:
+        You are the GuideMe Strategic Advisor. Use the following context:
         - Brand: Passport to the Best Universities. Est. 2014. Dubai (Tiffany Tower, JLT).
         - Leadership: Namrata (Admissions), Abheet (Test-Prep), José López Gallego (IE Professor/Partner).
         - Success: 100% UK Selection (Oxford, LSE); 98% Success Top 30 Global; Avg GMAT +110 points.
         - Courses: GMAT Focus, GRE, Digital SAT, UCAT, IMAT.
-        Keep advice authoritative and use bolding for key terms.
+        Be authoritative, concise, and use bolding for schools and stats.
         `;
 
         const formatText = (text) => {
@@ -80,19 +79,26 @@
 
             const callAI = async (history, currentInput) => {
                 const apiHistory = history.filter((m, i) => !(i === 0 && m.role === 'assistant'))
-                    .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+                    .map(m => ({ 
+                        role: m.role === 'assistant' ? 'model' : 'user', 
+                        parts: [{ text: m.content }] 
+                    }));
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [...apiHistory, { role: 'user', parts: [{ text: currentInput }] }],
-                        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+                        contents: [
+                            { role: "user", parts: [{ text: "SYSTEM INSTRUCTIONS: " + SYSTEM_PROMPT }] },
+                            { role: "model", parts: [{ text: "Understood. I am the GuideMe Strategic Advisor. How can I assist you today?" }] },
+                            ...apiHistory, 
+                            { role: 'user', parts: [{ text: currentInput }] }
+                        ]
                     })
                 });
                 
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error?.message || "Connection Error");
+                if (!res.ok) throw new Error(data.error?.message || "API Connection Error");
                 return data.candidates[0].content.parts[0].text;
             };
 
@@ -139,11 +145,11 @@
                             <button onClick={() => setSidebar(false)} className="md:hidden"><IconClose /></button>
                         </div>
                         <nav className="flex-1 p-4 space-y-1">
-                            <button onClick={() => handleSend(null, "Tell me about your Mentor team.")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconUsers /> Mentors</button>
-                            <button onClick={() => handleSend(null, "What courses do you offer?")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconBook /> Courses</button>
-                            <button onClick={() => handleSend(null, "Show me your success stats.")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconStats /> Stats</button>
+                            <button onClick={() => handleSend(null, "Who are the mentors at GuideMe?")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconUsers /> Mentors</button>
+                            <button onClick={() => handleSend(null, "Tell me about GMAT, GRE and SAT courses.")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconBook /> Courses</button>
+                            <button onClick={() => handleSend(null, "What are your placement statistics?")} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 hover:text-[#E55C5E] rounded-xl font-bold text-sm text-left"><IconStats /> Success Stats</button>
                             <div className="pt-4 mt-4 border-t border-slate-50">
-                                <button onClick={() => setMsgs([msgs[0]])} className="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-slate-600 font-bold text-sm text-left">Reset Chat</button>
+                                <button onClick={() => setMsgs([msgs[0]])} className="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-slate-600 font-bold text-sm text-left">Reset Session</button>
                             </div>
                         </nav>
                     </aside>
